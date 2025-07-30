@@ -4,11 +4,8 @@
   <meta charset="UTF-8">
   <title>Customer Service Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-
-  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 
   <style>
@@ -24,7 +21,7 @@
       to { opacity: 1; transform: translateY(0); }
     }
     .container {
-      max-width: 800px;
+      max-width: 900px;
       margin: auto;
       background: white;
       padding: 40px;
@@ -59,6 +56,15 @@
     .customer-msg { background-color: #e3f2fd; align-self: flex-start; }
     .chat-window { display: flex; flex-direction: column; }
     .top-actions, .admin-panel { text-align: center; margin-top: 30px; }
+    .entry-card {
+      background: #f0f8ff;
+      border-left: 5px solid #1976d2;
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .entry-card button { width: auto; margin: 5px; }
   </style>
 </head>
 <body>
@@ -87,18 +93,9 @@
       <button onclick="adminLogin()">Login</button>
     </div>
 
-    <div id="customerSelector" style="display: none; margin-top: 20px;">
-      <select id="adminCustomerId">
-        <option disabled selected>Choose Customer</option>
-      </select>
-      <button onclick="loadAdminChat()">Load Chat</button>
-    </div>
+    <div id="customerSelector" style="display: none; margin-top: 20px;"></div>
 
-    <div id="adminPanel" class="admin-panel" style="display: none;">
-      <div class="chat-box chat-window" id="adminChatWindow"></div>
-      <input type="text" id="adminChatInput" placeholder="Reply to customer...">
-      <button onclick="sendAdminChat()">Send Reply</button>
-    </div>
+    <div id="entries"></div>
   </div>
 
   <script>
@@ -141,49 +138,46 @@
     }
 
     function toggleLogin() {
-      const box = document.getElementById('adminLoginBox');
-      box.style.display = box.style.display === 'none' ? 'block' : 'none';
+      document.getElementById('adminLoginBox').style.display = 'block';
     }
 
     function adminLogin() {
       const pass = document.getElementById('adminPass').value;
       if (pass === 'admin123') {
-        document.getElementById('customerSelector').style.display = 'block';
-        loadCustomerList();
+        loadAllRequests();
       } else {
         alert("Incorrect password.");
       }
     }
 
-    function loadCustomerList() {
-      const dropdown = document.getElementById("adminCustomerId");
-      dropdown.innerHTML = '<option disabled selected>Choose Customer</option>';
+    function loadAllRequests() {
+      const container = document.getElementById("entries");
+      container.innerHTML = '';
       db.ref('requests').once('value', snapshot => {
         snapshot.forEach(child => {
-          const option = document.createElement('option');
-          option.value = child.key;
-          option.textContent = child.key;
-          dropdown.appendChild(option);
+          const data = child.val();
+          const id = child.key;
+          const div = document.createElement('div');
+          div.className = 'entry-card';
+          div.innerHTML = `
+            <p><strong>ID:</strong> ${id}</p>
+            <p><strong>Name:</strong> ${data.name}</p>
+            <p><strong>Service:</strong> ${data.service}</p>
+            <p><strong>Status:</strong> ${data.status}</p>
+            <button onclick="openChat('${id}')">💬 Chat</button>
+            <button onclick="sendReply('${id}')">📤 Reply</button>
+            <button onclick="markDone('${id}')">✅ Work Done</button>
+            <button onclick="deleteRequest('${id}')">🗑 Delete</button>
+            <input type="text" id="adminReply${id}" placeholder="Type reply...">
+            <div class="chat-box chat-window" id="chat${id}"></div>
+          `;
+          container.appendChild(div);
         });
       });
     }
 
-    function loadAdminChat() {
-      const customerId = document.getElementById("adminCustomerId").value;
-      if (customerId) {
-        currentCustomerId = customerId;
-        document.getElementById('adminPanel').style.display = 'block';
-        listenToChat(customerId, 'adminChatWindow');
-      }
-    }
-
-    function sendAdminChat() {
-      const msg = document.getElementById('adminChatInput').value;
-      if (currentCustomerId && msg.trim() !== '') {
-        const timestamp = Date.now();
-        db.ref(`chats/${currentCustomerId}/messages`).push({ sender: "admin", text: msg, time: timestamp });
-        document.getElementById('adminChatInput').value = '';
-      }
+    function openChat(customerId) {
+      listenToChat(customerId, `chat${customerId}`);
     }
 
     function listenToChat(customerId, containerId) {
@@ -193,10 +187,33 @@
         const msg = snapshot.val();
         const msgDiv = document.createElement('div');
         msgDiv.className = `chat-message ${msg.sender === 'admin' ? 'admin-msg' : 'customer-msg'}`;
-        msgDiv.textContent = `${msg.sender === 'admin' ? 'Admin' : 'You'}: ${msg.text}`;
+        msgDiv.textContent = `${msg.sender === 'admin' ? 'Admin' : 'Customer'}: ${msg.text}`;
         container.appendChild(msgDiv);
         container.scrollTop = container.scrollHeight;
       });
+    }
+
+    function sendReply(customerId) {
+      const msg = document.getElementById(`adminReply${customerId}`).value;
+      if (msg.trim()) {
+        const timestamp = Date.now();
+        db.ref(`chats/${customerId}/messages`).push({ sender: "admin", text: msg, time: timestamp });
+        document.getElementById(`adminReply${customerId}`).value = '';
+      }
+    }
+
+    function markDone(customerId) {
+      db.ref(`requests/${customerId}`).update({ status: "✅ Work Done" });
+      db.ref(`chats/${customerId}/messages`).push({ sender: "admin", text: "✅ Your work is done. Please check your WhatsApp and Email for details.", time: Date.now() });
+    }
+
+    function deleteRequest(customerId) {
+      if (confirm("Are you sure you want to delete this request?")) {
+        db.ref(`requests/${customerId}`).remove();
+        db.ref(`chats/${customerId}`).remove();
+        alert("Deleted successfully.");
+        loadAllRequests();
+      }
     }
   </script>
 </body>
