@@ -1,182 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Customer Service Portal</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-    body { background: linear-gradient(135deg, #c3ecf7, #f9f9f9); min-height: 100vh; padding: 40px; animation: fadeIn 1s ease-in-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-    .container { max-width: 800px; margin: auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1); }
-    h2 { text-align: center; color: #0d47a1; margin-bottom: 25px; }
-    input, textarea, button { width: 100%; padding: 14px; margin: 10px 0; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; }
-    button { background: linear-gradient(to right, #1976d2, #0d47a1); color: white; border: none; font-weight: bold; cursor: pointer; transition: background 0.3s ease; }
-    button:hover { background: linear-gradient(to right, #0d47a1, #1976d2); }
-    .entry { background: #f1f8e9; margin-top: 20px; padding: 20px; border-radius: 15px; border-left: 6px solid #43a047; }
-    .entry button { width: auto; margin: 5px 5px 0 0; }
-    .chat-box { background: #e0f7fa; padding: 10px; border-radius: 10px; margin-top: 10px; }
-    .message { margin: 5px 0; }
-    .message.admin { text-align: right; color: #0d47a1; }
-    .message.customer { text-align: left; color: #388e3c; }
+    body {
+      background: linear-gradient(135deg, #c3ecf7, #e6f7ff);
+      padding: 30px;
+      animation: fadeIn 0.6s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #0d47a1;
+    }
+    input, textarea, button {
+      width: 100%;
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+      transition: all 0.3s ease;
+    }
+    button {
+      background: linear-gradient(to right, #007bff, #0056b3);
+      color: #fff;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: linear-gradient(to right, #0056b3, #007bff);
+    }
+    .chat-box {
+      background: #f9f9f9;
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 10px;
+      max-height: 300px;
+      overflow-y: auto;
+      border-left: 5px solid #2196f3;
+    }
+    .message {
+      margin-bottom: 10px;
+    }
+    .admin-msg {
+      text-align: right;
+      color: #0d47a1;
+    }
+    .user-msg {
+      text-align: left;
+      color: #388e3c;
+    }
+    .entry {
+      margin-top: 20px;
+      padding: 20px;
+      background: #f1f8e9;
+      border-radius: 10px;
+      border-left: 5px solid #43a047;
+    }
   </style>
 </head>
 <body>
 <div class="container">
-  <h2>📬 Submit Your Service Request</h2>
+  <h2>📬 Customer Support Chat</h2>
   <form id="userForm">
-    <input type="text" id="name" placeholder="Your Name" required>
-    <input type="text" id="service" placeholder="Service Needed" required>
+    <input type="text" id="name" placeholder="Your Name" required />
     <textarea id="message" placeholder="Write your message..." required></textarea>
-    <input type="text" id="whatsapp" placeholder="WhatsApp Number (optional)">
-    <input type="email" id="email" placeholder="Email Address (optional)">
-    <button type="submit">Submit Request</button>
+    <button type="submit">Send Message</button>
   </form>
 
-  <div class="top-actions">
-    <button onclick="editLast()">✏️ Edit My Last Submission</button>
-    <button onclick="toggleLogin()">🔐 Admin Login</button>
+  <div class="chat-box" id="chatBox"></div>
+
+  <div style="margin-top: 20px;">
+    <input type="password" id="adminPass" placeholder="Admin Password" />
+    <button onclick="adminLogin()">Admin Login</button>
   </div>
 
-  <div id="adminLoginBox" style="display:none;">
-    <input type="password" id="adminPass" placeholder="Enter Admin Password">
-    <button onclick="adminLogin()">Login</button>
+  <div class="entry" id="adminTools" style="display: none;">
+    <h3>Admin Panel</h3>
+    <input type="text" id="adminReply" placeholder="Write admin reply..." />
+    <button onclick="sendAdminReply()">Send Reply</button>
+    <button onclick="markWorkDone()">✅ Mark Work Done</button>
   </div>
-
-  <div id="adminPanel" style="display:none;">
-    <h2>🛠 Admin Panel</h2>
-    <button onclick="refreshEntries()">🔄 Refresh</button>
-    <div id="entries"></div>
-  </div>
-
-  <div id="chatArea"></div>
 </div>
 
 <script>
-const firebaseConfig = { databaseURL: "https://online-service-coustomer-data-default-rtdb.firebaseio.com/" };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-let lastKey = null;
-let isAdmin = false;
-
-const userForm = document.getElementById('userForm');
-const entriesDiv = document.getElementById('entries');
-const chatArea = document.getElementById('chatArea');
-
-userForm.addEventListener('submit', function(e) {
-  e.preventDefault();
-  const entry = {
-    name: userForm.name.value,
-    service: userForm.service.value,
-    message: userForm.message.value,
-    whatsapp: userForm.whatsapp.value,
-    email: userForm.email.value,
-    status: "Pending", reply: ""
+  const firebaseConfig = {
+    databaseURL: "https://online-service-coustomer-data-default-rtdb.firebaseio.com/"
   };
-  const newRef = db.ref('requests').push();
-  lastKey = newRef.key;
-  newRef.set(entry).then(() => {
-    alert("✅ Submitted Successfully!");
-    userForm.reset();
-    openChatBox(lastKey, false);
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  const form = document.getElementById('userForm');
+  const chatBox = document.getElementById('chatBox');
+  const adminTools = document.getElementById('adminTools');
+  const adminPass = document.getElementById('adminPass');
+
+  let userName = '';
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('name').value;
+    const message = document.getElementById('message').value;
+    userName = name;
+    db.ref('chats').push({ from: name, message, sender: 'user', time: Date.now() });
+    form.reset();
   });
-});
 
-function editLast() {
-  if (!lastKey) return alert("No previous submission to edit.");
-  db.ref('requests/' + lastKey).once('value', snap => {
-    const data = snap.val();
-    userForm.name.value = data.name;
-    userForm.service.value = data.service;
-    userForm.message.value = data.message;
-    userForm.whatsapp.value = data.whatsapp;
-    userForm.email.value = data.email;
-    alert("You can now edit and resubmit.");
-  });
-}
-
-function toggleLogin() {
-  document.getElementById('adminLoginBox').style.display = 'block';
-}
-
-function adminLogin() {
-  if (document.getElementById('adminPass').value === 'admin123') {
-    isAdmin = true;
-    document.getElementById('adminPanel').style.display = 'block';
-    refreshEntries();
-  } else {
-    alert("❌ Incorrect password");
-  }
-}
-
-function refreshEntries() {
-  entriesDiv.innerHTML = '';
-  db.ref('requests').once('value', snapshot => {
-    snapshot.forEach(child => {
-      const entry = child.val();
-      const key = child.key;
-      const div = document.createElement('div');
-      div.className = 'entry';
-      div.innerHTML = `
-        <p><strong>Name:</strong> ${entry.name}</p>
-        <p><strong>Service:</strong> ${entry.service}</p>
-        <p><strong>Status:</strong> ${entry.status}</p>
-        <button onclick="openChatBox('${key}', true)">💬 View Chat</button>
-        <button onclick="markDone('${key}')">✅ Work Done</button>
-        <button onclick="deleteEntry('${key}')">🗑 Delete</button>
-      `;
-      entriesDiv.appendChild(div);
+  function loadChats() {
+    chatBox.innerHTML = '';
+    db.ref('chats').on('value', snapshot => {
+      chatBox.innerHTML = '';
+      snapshot.forEach(child => {
+        const data = child.val();
+        const div = document.createElement('div');
+        div.className = `message ${data.sender === 'admin' ? 'admin-msg' : 'user-msg'}`;
+        div.textContent = `${data.from}: ${data.message}`;
+        chatBox.appendChild(div);
+      });
+      chatBox.scrollTop = chatBox.scrollHeight;
     });
-  });
-}
-
-function openChatBox(key, admin) {
-  chatArea.innerHTML = '';
-  const box = document.createElement('div');
-  box.className = 'chat-box';
-  box.innerHTML = `<h3>💬 Chat</h3><div id="messages"></div>
-    <input id="chatMsg" placeholder="Type a message"><button onclick="sendChat('${key}')">Send</button>`;
-  chatArea.appendChild(box);
-  db.ref('chats/' + key).on('value', snap => {
-    const messagesDiv = document.getElementById('messages');
-    messagesDiv.innerHTML = '';
-    snap.forEach(child => {
-      const msg = child.val();
-      const p = document.createElement('p');
-      p.className = 'message ' + msg.sender;
-      p.textContent = (msg.sender === 'admin' ? 'Admin: ' : 'You: ') + msg.text;
-      messagesDiv.appendChild(p);
-    });
-  });
-  lastKey = key;
-  isAdmin = admin;
-}
-
-function sendChat(key) {
-  const text = document.getElementById('chatMsg').value;
-  if (!text.trim()) return;
-  db.ref('chats/' + key).push({ text, sender: isAdmin ? 'admin' : 'customer', time: Date.now() });
-  document.getElementById('chatMsg').value = '';
-}
-
-function markDone(key) {
-  db.ref('requests/' + key).update({ status: "✅ Work Completed", reply: "Your work is done successfully. Check WhatsApp and Email." });
-  db.ref('chats/' + key).push({ text: "Your work is done successfully. Check WhatsApp and Email.", sender: "admin", time: Date.now() });
-  alert("Marked as done.");
-  refreshEntries();
-}
-
-function deleteEntry(key) {
-  if (confirm("Are you sure?")) {
-    db.ref('requests/' + key).remove();
-    db.ref('chats/' + key).remove();
-    alert("Deleted.");
-    refreshEntries();
   }
-}
+
+  function adminLogin() {
+    if (adminPass.value === 'admin123') {
+      adminTools.style.display = 'block';
+      loadChats();
+    } else {
+      alert('❌ Incorrect Password');
+    }
+  }
+
+  function sendAdminReply() {
+    const reply = document.getElementById('adminReply').value;
+    if (reply.trim() !== '') {
+      db.ref('chats').push({ from: 'Admin', message: reply, sender: 'admin', time: Date.now() });
+      document.getElementById('adminReply').value = '';
+    }
+  }
+
+  function markWorkDone() {
+    db.ref('chats').push({ from: 'Admin', message: '✅ Your work is done. Please check WhatsApp and Email.', sender: 'admin', time: Date.now() });
+  }
+
+  loadChats();
 </script>
 </body>
 </html>
