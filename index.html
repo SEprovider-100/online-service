@@ -11,20 +11,17 @@
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
     body { background: linear-gradient(135deg, #c3ecf7, #f9f9f9); min-height: 100vh; padding: 40px; animation: fadeIn 1s ease-in-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-    .container { max-width: 800px; margin: auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1); transition: transform 0.3s ease; }
-    .container:hover { transform: scale(1.01); }
+    .container { max-width: 800px; margin: auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1); }
     h2 { text-align: center; color: #0d47a1; margin-bottom: 25px; }
     input, textarea, button { width: 100%; padding: 14px; margin: 10px 0; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; }
     button { background: linear-gradient(to right, #1976d2, #0d47a1); color: white; border: none; font-weight: bold; cursor: pointer; transition: background 0.3s ease; }
     button:hover { background: linear-gradient(to right, #0d47a1, #1976d2); }
-    .entry { background: #f1f8e9; margin-top: 20px; padding: 20px; border-radius: 15px; animation: slideUp 0.4s ease-in-out; border-left: 6px solid #43a047; }
+    .entry { background: #f1f8e9; margin-top: 20px; padding: 20px; border-radius: 15px; border-left: 6px solid #43a047; }
     .entry button { width: auto; margin: 5px 5px 0 0; }
-    .top-actions, .admin-panel { text-align: center; margin-top: 30px; }
-    .message-box { background: #e3f2fd; border-left: 5px solid #2196f3; padding: 15px; border-radius: 10px; margin-top: 20px; }
-    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    .chat-box { margin-top: 20px; padding: 20px; background: #fbe9e7; border-left: 5px solid #ef6c00; border-radius: 10px; }
-    .chat-message { margin-bottom: 10px; }
-    .chat-message strong { color: #0d47a1; }
+    .chat-box { background: #e0f7fa; padding: 10px; border-radius: 10px; margin-top: 10px; }
+    .message { margin: 5px 0; }
+    .message.admin { text-align: right; color: #0d47a1; }
+    .message.customer { text-align: left; color: #388e3c; }
   </style>
 </head>
 <body>
@@ -39,180 +36,147 @@
     <button type="submit">Submit Request</button>
   </form>
 
-  <div id="customerMessage"></div>
-  <div class="chat-box" id="customerChatBox" style="display:none;">
-    <h3>💬 Your Chat</h3>
-    <div id="chatMessages"></div>
-    <input type="text" id="chatInput" placeholder="Write a message...">
-    <button onclick="sendCustomerMessage()">Send</button>
-  </div>
-
   <div class="top-actions">
     <button onclick="editLast()">✏️ Edit My Last Submission</button>
     <button onclick="toggleLogin()">🔐 Admin Login</button>
   </div>
 
-  <div id="adminLoginBox" style="display: none; margin-top: 20px;">
+  <div id="adminLoginBox" style="display:none;">
     <input type="password" id="adminPass" placeholder="Enter Admin Password">
     <button onclick="adminLogin()">Login</button>
   </div>
 
-  <div id="adminPanel" class="admin-panel" style="display: none;">
+  <div id="adminPanel" style="display:none;">
     <h2>🛠 Admin Panel</h2>
     <button onclick="refreshEntries()">🔄 Refresh</button>
     <div id="entries"></div>
   </div>
+
+  <div id="chatArea"></div>
 </div>
 
 <script>
-  const firebaseConfig = { databaseURL: "https://online-service-coustomer-data-default-rtdb.firebaseio.com/" };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+const firebaseConfig = { databaseURL: "https://online-service-coustomer-data-default-rtdb.firebaseio.com/" };
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+let lastKey = null;
+let isAdmin = false;
 
-  const userForm = document.getElementById('userForm');
-  const entriesDiv = document.getElementById('entries');
-  const adminPanel = document.getElementById('adminPanel');
-  const adminLoginBox = document.getElementById('adminLoginBox');
-  const adminPassInput = document.getElementById('adminPass');
-  const customerMessageDiv = document.getElementById('customerMessage');
-  const customerChatBox = document.getElementById('customerChatBox');
-  const chatMessagesDiv = document.getElementById('chatMessages');
-  const chatInput = document.getElementById('chatInput');
+const userForm = document.getElementById('userForm');
+const entriesDiv = document.getElementById('entries');
+const chatArea = document.getElementById('chatArea');
 
-  let lastKey = null;
+userForm.addEventListener('submit', function(e) {
+  e.preventDefault();
+  const entry = {
+    name: userForm.name.value,
+    service: userForm.service.value,
+    message: userForm.message.value,
+    whatsapp: userForm.whatsapp.value,
+    email: userForm.email.value,
+    status: "Pending", reply: ""
+  };
+  const newRef = db.ref('requests').push();
+  lastKey = newRef.key;
+  newRef.set(entry).then(() => {
+    alert("✅ Submitted Successfully!");
+    userForm.reset();
+    openChatBox(lastKey, false);
+  });
+});
 
-  userForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const name = document.getElementById('name').value;
-    const service = document.getElementById('service').value;
-    const message = document.getElementById('message').value;
-    const whatsapp = document.getElementById('whatsapp').value;
-    const email = document.getElementById('email').value;
-    const entry = { name, service, message, whatsapp, email, status: "Pending", reply: "" };
-    const newRef = db.ref('requests').push();
-    lastKey = newRef.key;
-    newRef.set(entry).then(() => {
-      alert("✅ Submitted Successfully!");
-      userForm.reset();
-      showCustomerMessage();
-      loadChat();
+function editLast() {
+  if (!lastKey) return alert("No previous submission to edit.");
+  db.ref('requests/' + lastKey).once('value', snap => {
+    const data = snap.val();
+    userForm.name.value = data.name;
+    userForm.service.value = data.service;
+    userForm.message.value = data.message;
+    userForm.whatsapp.value = data.whatsapp;
+    userForm.email.value = data.email;
+    alert("You can now edit and resubmit.");
+  });
+}
+
+function toggleLogin() {
+  document.getElementById('adminLoginBox').style.display = 'block';
+}
+
+function adminLogin() {
+  if (document.getElementById('adminPass').value === 'admin123') {
+    isAdmin = true;
+    document.getElementById('adminPanel').style.display = 'block';
+    refreshEntries();
+  } else {
+    alert("❌ Incorrect password");
+  }
+}
+
+function refreshEntries() {
+  entriesDiv.innerHTML = '';
+  db.ref('requests').once('value', snapshot => {
+    snapshot.forEach(child => {
+      const entry = child.val();
+      const key = child.key;
+      const div = document.createElement('div');
+      div.className = 'entry';
+      div.innerHTML = `
+        <p><strong>Name:</strong> ${entry.name}</p>
+        <p><strong>Service:</strong> ${entry.service}</p>
+        <p><strong>Status:</strong> ${entry.status}</p>
+        <button onclick="openChatBox('${key}', true)">💬 View Chat</button>
+        <button onclick="markDone('${key}')">✅ Work Done</button>
+        <button onclick="deleteEntry('${key}')">🗑 Delete</button>
+      `;
+      entriesDiv.appendChild(div);
     });
   });
+}
 
-  function editLast() {
-    if (!lastKey) return alert("❗No previous submission to edit.");
-    db.ref('requests/' + lastKey).once('value', snap => {
-      const last = snap.val();
-      document.getElementById('name').value = last.name;
-      document.getElementById('service').value = last.service;
-      document.getElementById('message').value = last.message;
-      document.getElementById('whatsapp').value = last.whatsapp;
-      document.getElementById('email').value = last.email;
-      alert("🔁 You can now edit and re-submit.");
+function openChatBox(key, admin) {
+  chatArea.innerHTML = '';
+  const box = document.createElement('div');
+  box.className = 'chat-box';
+  box.innerHTML = `<h3>💬 Chat</h3><div id="messages"></div>
+    <input id="chatMsg" placeholder="Type a message"><button onclick="sendChat('${key}')">Send</button>`;
+  chatArea.appendChild(box);
+  db.ref('chats/' + key).on('value', snap => {
+    const messagesDiv = document.getElementById('messages');
+    messagesDiv.innerHTML = '';
+    snap.forEach(child => {
+      const msg = child.val();
+      const p = document.createElement('p');
+      p.className = 'message ' + msg.sender;
+      p.textContent = (msg.sender === 'admin' ? 'Admin: ' : 'You: ') + msg.text;
+      messagesDiv.appendChild(p);
     });
-  }
+  });
+  lastKey = key;
+  isAdmin = admin;
+}
 
-  function showCustomerMessage() {
-    if (!lastKey) return;
-    db.ref('requests/' + lastKey).once('value', snap => {
-      const data = snap.val();
-      if (data.reply) {
-        customerMessageDiv.innerHTML = `<div class="message-box"><strong>📩 Admin Message:</strong> ${data.reply}</div>`;
-      }
-    });
-  }
+function sendChat(key) {
+  const text = document.getElementById('chatMsg').value;
+  if (!text.trim()) return;
+  db.ref('chats/' + key).push({ text, sender: isAdmin ? 'admin' : 'customer', time: Date.now() });
+  document.getElementById('chatMsg').value = '';
+}
 
-  function toggleLogin() {
-    adminLoginBox.style.display = adminLoginBox.style.display === 'none' ? 'block' : 'none';
-  }
+function markDone(key) {
+  db.ref('requests/' + key).update({ status: "✅ Work Completed", reply: "Your work is done successfully. Check WhatsApp and Email." });
+  db.ref('chats/' + key).push({ text: "Your work is done successfully. Check WhatsApp and Email.", sender: "admin", time: Date.now() });
+  alert("Marked as done.");
+  refreshEntries();
+}
 
-  function adminLogin() {
-    if (adminPassInput.value === 'admin123') {
-      adminPanel.style.display = 'block';
-      refreshEntries();
-    } else {
-      alert("❌ Incorrect password.");
-    }
-  }
-
-  function refreshEntries() {
-    entriesDiv.innerHTML = '';
-    db.ref('requests').once('value', snapshot => {
-      snapshot.forEach(child => {
-        const entry = child.val();
-        const key = child.key;
-        const div = document.createElement('div');
-        div.className = 'entry';
-        div.innerHTML = `
-          <p><strong>Name:</strong> ${entry.name}</p>
-          <p><strong>Service:</strong> ${entry.service}</p>
-          <p><strong>Message:</strong> ${entry.message}</p>
-          ${entry.whatsapp ? `<p><strong>WhatsApp:</strong> ${entry.whatsapp}</p>` : ''}
-          ${entry.email ? `<p><strong>Email:</strong> ${entry.email}</p>` : ''}
-          <p><strong>Status:</strong> ${entry.status}</p>
-          <p><strong>Reply:</strong> ${entry.reply}</p>
-          <input type="text" id="reply${key}" placeholder="Write a reply">
-          <button onclick="sendReply('${key}')">📨 Send Reply</button>
-          <button onclick="markDone('${key}')">✅ Work Done</button>
-          <button onclick="deleteEntry('${key}')">🗑 Delete</button>
-          <button onclick="viewChat('${key}')">💬 View Chat</button>
-        `;
-        entriesDiv.appendChild(div);
-      });
-    });
-  }
-
-  function sendReply(key) {
-    const msg = document.getElementById(`reply${key}`).value;
-    if (msg.trim() !== '') {
-      db.ref(`chats/${key}`).push({ from: 'admin', text: msg });
-      alert("Message sent.");
-      refreshEntries();
-    }
-  }
-
-  function markDone(key) {
-    db.ref('requests/' + key).update({ status: "✅ Work Completed", reply: "Your work is done!" });
-    alert("Marked as done.");
+function deleteEntry(key) {
+  if (confirm("Are you sure?")) {
+    db.ref('requests/' + key).remove();
+    db.ref('chats/' + key).remove();
+    alert("Deleted.");
     refreshEntries();
   }
-
-  function deleteEntry(key) {
-    if (confirm("Are you sure?")) {
-      db.ref('requests/' + key).remove();
-      db.ref('chats/' + key).remove();
-      alert("Deleted.");
-      refreshEntries();
-    }
-  }
-
-  function viewChat(key) {
-    window.open(`chat.html?key=${key}`, '_blank');
-  }
-
-  function loadChat() {
-    if (!lastKey) return;
-    customerChatBox.style.display = 'block';
-    chatMessagesDiv.innerHTML = '';
-    db.ref(`chats/${lastKey}`).on('value', snap => {
-      chatMessagesDiv.innerHTML = '';
-      snap.forEach(child => {
-        const msg = child.val();
-        const div = document.createElement('div');
-        div.className = 'chat-message';
-        div.innerHTML = `<strong>${msg.from === 'admin' ? 'Admin' : 'You'}:</strong> ${msg.text}`;
-        chatMessagesDiv.appendChild(div);
-      });
-    });
-  }
-
-  function sendCustomerMessage() {
-    const text = chatInput.value.trim();
-    if (text && lastKey) {
-      db.ref(`chats/${lastKey}`).push({ from: 'user', text });
-      chatInput.value = '';
-    }
-  }
+}
 </script>
 </body>
 </html>
