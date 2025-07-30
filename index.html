@@ -2,23 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Customer Service Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Poppins', sans-serif;
-    }
     body {
+      font-family: 'Poppins', sans-serif;
       background: linear-gradient(to right, #e3f2fd, #bbdefb);
       padding: 40px;
-      animation: fadeIn 1s ease-in-out;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
     }
     .container {
       max-width: 700px;
@@ -30,75 +24,44 @@
     }
     h2 {
       text-align: center;
-      margin-bottom: 25px;
       color: #0d47a1;
     }
     input, textarea, button {
       width: 100%;
-      padding: 14px;
+      padding: 12px;
       margin: 10px 0;
-      border-radius: 10px;
+      border-radius: 8px;
       border: 1px solid #ccc;
-      font-size: 16px;
     }
     button {
       background-color: #1976d2;
       color: white;
       font-weight: bold;
       cursor: pointer;
-      transition: 0.3s ease;
     }
     button:hover {
       background-color: #0d47a1;
     }
-    .top-actions {
-      text-align: center;
-      margin-top: 20px;
-    }
-    #adminLoginBtn {
-      background-color: #1565c0;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 8px;
-      cursor: pointer;
-      display: inline-block;
-    }
-    #adminLoginBox {
-      display: none;
-      margin-top: 20px;
-    }
-    .admin-panel {
-      display: none;
-      margin-top: 30px;
-      background: #e3f2fd;
-      padding: 20px;
-      border-radius: 15px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-    }
     .entry {
-      background: #ffffff;
+      background: #f5f5f5;
+      margin-top: 20px;
       padding: 15px;
-      margin-bottom: 15px;
-      border-left: 5px solid #1976d2;
       border-radius: 10px;
-      animation: slideUp 0.4s ease-in-out;
     }
     .entry button {
       width: auto;
-      margin: 5px 5px 0 0;
-      display: inline-block;
+      margin: 5px;
+    }
+    .top-actions, .admin-panel {
+      text-align: center;
+      margin-top: 20px;
     }
     .message-box {
-      margin-top: 10px;
-      padding: 10px;
       background: #e8f5e9;
-      border-left: 4px solid #4caf50;
+      border-left: 5px solid green;
+      padding: 10px;
+      margin-top: 15px;
       border-radius: 8px;
-      color: #2e7d32;
-    }
-    @keyframes slideUp {
-      from {transform: translateY(20px); opacity: 0;}
-      to {transform: translateY(0); opacity: 1;}
     }
   </style>
 </head>
@@ -113,17 +76,20 @@
       <input type="email" id="email" placeholder="Email Address (optional)">
       <button type="submit">Submit Request</button>
     </form>
+
     <div id="customerMessage"></div>
+
     <div class="top-actions">
       <button onclick="editLast()">✏️ Edit My Last Submission</button>
-      <div id="adminLoginBtn" onclick="toggleLogin()">🔐 Admin Login</div>
+      <button onclick="toggleLogin()">🔐 Admin Login</button>
     </div>
-    <div id="adminLoginBox">
+
+    <div id="adminLoginBox" style="display: none;">
       <input type="password" id="adminPass" placeholder="Enter Admin Password">
       <button onclick="adminLogin()">Login</button>
     </div>
 
-    <div class="admin-panel" id="adminPanel">
+    <div id="adminPanel" class="admin-panel" style="display: none;">
       <h2>🛠 Admin Panel</h2>
       <button onclick="refreshEntries()">🔄 Refresh</button>
       <div id="entries"></div>
@@ -131,14 +97,21 @@
   </div>
 
   <script>
-    let data = JSON.parse(localStorage.getItem('messages')) || [];
-    let editingIndex = null;
+    // ✅ Your Firebase Config
+    const firebaseConfig = {
+      databaseURL: "https://online-service-coustomer-data-default-rtdb.firebaseio.com/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
     const userForm = document.getElementById('userForm');
     const entriesDiv = document.getElementById('entries');
     const adminPanel = document.getElementById('adminPanel');
-    const adminPassInput = document.getElementById('adminPass');
     const adminLoginBox = document.getElementById('adminLoginBox');
+    const adminPassInput = document.getElementById('adminPass');
     const customerMessageDiv = document.getElementById('customerMessage');
+
+    let lastKey = null;
 
     userForm.addEventListener('submit', function(e) {
       e.preventDefault();
@@ -150,43 +123,41 @@
 
       const entry = { name, service, message, whatsapp, email, status: "Pending", reply: "" };
 
-      if (editingIndex !== null) {
-        data[editingIndex] = entry;
-        editingIndex = null;
-      } else {
-        data.push(entry);
-      }
-      localStorage.setItem('messages', JSON.stringify(data));
-      alert('✅ Submitted Successfully!');
-      userForm.reset();
-      showCustomerMessage();
+      const newRef = db.ref('requests').push();
+      lastKey = newRef.key;
+
+      newRef.set(entry).then(() => {
+        alert("✅ Submitted Successfully!");
+        userForm.reset();
+        showCustomerMessage();
+      });
     });
 
     function editLast() {
-      const last = data[data.length - 1];
-      if (last) {
+      if (!lastKey) {
+        alert("❗No previous submission to edit.");
+        return;
+      }
+      db.ref('requests/' + lastKey).once('value', snap => {
+        const last = snap.val();
         document.getElementById('name').value = last.name;
         document.getElementById('service').value = last.service;
         document.getElementById('message').value = last.message;
         document.getElementById('whatsapp').value = last.whatsapp;
         document.getElementById('email').value = last.email;
-        editingIndex = data.length - 1;
-        alert('🔁 You can now edit and re-submit.');
-      } else {
-        alert('❗No previous submission found.');
-      }
+        alert("🔁 You can now edit and re-submit.");
+      });
     }
 
     function showCustomerMessage() {
-      const last = data[data.length - 1];
-      if (last && last.reply) {
-        customerMessageDiv.innerHTML = `<div class='message-box'><strong>📩 Message from Admin:</strong> ${last.reply}</div>`;
-      } else {
-        customerMessageDiv.innerHTML = '';
-      }
+      if (!lastKey) return;
+      db.ref('requests/' + lastKey).once('value', snap => {
+        const data = snap.val();
+        if (data.reply) {
+          customerMessageDiv.innerHTML = `<div class="message-box"><strong>📩 Admin Message:</strong> ${data.reply}</div>`;
+        }
+      });
     }
-
-    showCustomerMessage();
 
     function toggleLogin() {
       adminLoginBox.style.display = adminLoginBox.style.display === 'none' ? 'block' : 'none';
@@ -197,58 +168,57 @@
         adminPanel.style.display = 'block';
         refreshEntries();
       } else {
-        alert('❌ Incorrect password');
+        alert("❌ Incorrect password.");
       }
     }
 
     function refreshEntries() {
-      data = JSON.parse(localStorage.getItem('messages')) || [];
       entriesDiv.innerHTML = '';
-      data.forEach((entry, index) => {
-        const div = document.createElement('div');
-        div.className = 'entry';
-        div.innerHTML = `
-          <p><strong>Name:</strong> ${entry.name}</p>
-          <p><strong>Service:</strong> ${entry.service}</p>
-          <p><strong>Message:</strong> ${entry.message}</p>
-          ${entry.whatsapp ? `<p><strong>WhatsApp:</strong> ${entry.whatsapp}</p>` : ''}
-          ${entry.email ? `<p><strong>Email:</strong> ${entry.email}</p>` : ''}
-          <p><strong>Status:</strong> ${entry.status}</p>
-          <p><strong>Admin Message:</strong> ${entry.reply}</p>
-          <input type="text" id="adminReply${index}" placeholder="Write a message...">
-          <button onclick="sendSMS(${index}, 'Your work is done. Check your WhatsApp.')">✅ Work Done</button>
-          <button onclick="customReply(${index})">📨 Send Custom Message</button>
-          <button onclick="deleteEntry(${index})">🗑 Delete</button>
-        `;
-        entriesDiv.appendChild(div);
+      db.ref('requests').once('value', snapshot => {
+        snapshot.forEach(child => {
+          const entry = child.val();
+          const key = child.key;
+
+          const div = document.createElement('div');
+          div.className = 'entry';
+          div.innerHTML = `
+            <p><strong>Name:</strong> ${entry.name}</p>
+            <p><strong>Service:</strong> ${entry.service}</p>
+            <p><strong>Message:</strong> ${entry.message}</p>
+            ${entry.whatsapp ? `<p><strong>WhatsApp:</strong> ${entry.whatsapp}</p>` : ''}
+            ${entry.email ? `<p><strong>Email:</strong> ${entry.email}</p>` : ''}
+            <p><strong>Status:</strong> ${entry.status}</p>
+            <p><strong>Reply:</strong> ${entry.reply}</p>
+            <input type="text" id="reply${key}" placeholder="Write a reply">
+            <button onclick="sendReply('${key}')">📨 Send Reply</button>
+            <button onclick="markDone('${key}')">✅ Work Done</button>
+            <button onclick="deleteEntry('${key}')">🗑 Delete</button>
+          `;
+          entriesDiv.appendChild(div);
+        });
       });
     }
 
-    function deleteEntry(index) {
-      if (confirm("Are you sure you want to delete this entry?")) {
-        data.splice(index, 1);
-        localStorage.setItem('messages', JSON.stringify(data));
+    function sendReply(key) {
+      const msg = document.getElementById(`reply${key}`).value;
+      if (msg.trim() !== '') {
+        db.ref('requests/' + key).update({ reply: msg });
+        alert("Message sent.");
         refreshEntries();
       }
     }
 
-    function sendSMS(index, message) {
-      data[index].reply = message;
-      data[index].status = "✅ Work Completed";
-      localStorage.setItem('messages', JSON.stringify(data));
+    function markDone(key) {
+      db.ref('requests/' + key).update({ status: "✅ Work Completed", reply: "Your work is done!" });
+      alert("Marked as done.");
       refreshEntries();
-      alert("Auto message sent to customer panel.");
     }
 
-    function customReply(index) {
-      const msg = document.getElementById(`adminReply${index}`).value;
-      if (msg.trim() !== '') {
-        data[index].reply = msg;
-        localStorage.setItem('messages', JSON.stringify(data));
+    function deleteEntry(key) {
+      if (confirm("Are you sure?")) {
+        db.ref('requests/' + key).remove();
+        alert("Deleted.");
         refreshEntries();
-        alert("Message sent successfully.");
-      } else {
-        alert("Please write a message first.");
       }
     }
   </script>
