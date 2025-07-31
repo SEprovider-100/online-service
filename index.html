@@ -216,5 +216,113 @@
       }
     }
   </script>
+   <style>
+    * {
+      margin: 0; padding: 0; box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+    body {
+      background: linear-gradient(120deg, #e0f7fa, #fce4ec);
+      min-height: 100vh;
+      padding: 50px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 960px;
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      animation: slideUp 0.6s ease-out;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    h2 {
+      text-align: center;
+      color: #1565c0;
+      margin-bottom: 30px;
+      font-weight: 600;
+    }
+    form input, form textarea, form button {
+      width: 100%;
+      margin: 10px 0;
+      padding: 14px;
+      font-size: 16px;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+    }
+    form button {
+      background: linear-gradient(90deg, #42a5f5, #1e88e5);
+      color: white;
+      font-weight: 600;
+      border: none;
+      transition: background 0.3s ease;
+    }
+    form button:hover {
+      background: linear-gradient(90deg, #1e88e5, #1565c0);
+    }
+    .chat-box {
+      background: #f9f9f9;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      padding: 10px;
+      max-height: 250px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+    .chat-message {
+      padding: 8px 12px;
+      margin: 6px 0;
+      border-radius: 8px;
+      max-width: 75%;
+      word-wrap: break-word;
+    }
+    .admin-msg {
+      background-color: #c8e6c9;
+      align-self: flex-end;
+    }
+    .customer-msg {
+      background-color: #e3f2fd;
+      align-self: flex-start;
+    }
+    .top-actions, .admin-panel {
+      text-align: center;
+      margin-top: 30px;
+    }
+    .entry-card {
+      background: #ffffff;
+      border-left: 6px solid #1e88e5;
+      margin-top: 25px;
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .entry-card button {
+      margin: 5px 5px 5px 0;
+      padding: 10px 20px;
+      border: none;
+      background: #1e88e5;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    .entry-card button:hover {
+      background: #1565c0;
+    }
+    #adminLoginBox, #customerSelector {
+      margin-top: 25px;
+      animation: fadeIn 0.5s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
 </body>
 </html>
